@@ -1,7 +1,7 @@
 baseURL = "https://requizm.github.io/"
 languageCode = "tr-TR"
 title = "requizm"
-copyright = "Copyright © 2008–2019, Steve Francia and the Hugo Authors; all rights reserved."
+copyright = "Theme Copyright © 2008–2021, Steve Francia and the Hugo Authors; all rights reserved."
 theme = "npq-hugo"
 pygmentsUseClasses=true
 
