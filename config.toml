@@ -21,7 +21,7 @@ pygmentsUseClasses=true
 
 [menu]
   [[menu.main]]
-    name = "home"
+    name = "anasayfa"
     pre = "<i class=\"fas fa-home fa-sm\"></i>"
     url = "/"
     weight = -9 
@@ -31,15 +31,20 @@ pygmentsUseClasses=true
     url = "/blog/"
     weight = -8
   [[menu.main]]
-    name = "tags"
+    name = "kategori"
+    pre = "<i class=\"fas fa-tags fa-ms\"></i>"
+    url = "/categories"
+    weight = -7 
+  [[menu.main]]
+    name = "tag"
     pre = "<i class=\"fas fa-tags fa-ms\"></i>"
     url = "/tags"
-    weight = -7 
+    weight = -6 
   [[menu.main]]
     name = "github"
     pre = "<i class=\"fab fa-github fa-ms\"></i>"
     url = "https://github.com/requizm"
-    weight = -6 
+    weight = -5 
   [[menu.main]]
     name = "RSS"
     pre = "<i class=\"fas fa-rss fa-ms\"></i>"
