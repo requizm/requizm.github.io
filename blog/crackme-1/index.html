@@ -1,0 +1,327 @@
+<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=Author content="requizm"><meta name=keywords content="requizm blog"><link rel=stylesheet href=http://requizm.github.io/css/syntax.css><link rel=stylesheet href=http://requizm.github.io/css/style.css><script src=https://kit.fontawesome.com/1b7478c139.js crossorigin=anonymous></script><title>requizm</title></head><body><aside id=sidenav><header><a id=branding href=http://requizm.github.io/>requizm</a></header><nav><a href=/><i class="fas fa-home fa-sm"></i>
+<span>home</span></a>
+<a href=/blog/><i class="fas fa-keyboard fa-ms"></i>
+<span>blog</span></a>
+<a href=/tags><i class="fas fa-tags fa-ms"></i>
+<span>tags</span></a>
+<a href=https://github.com/requizm target=_blank><i class="fab fa-github fa-ms"></i>
+<span>github</span></a>
+<a href=/index.xml><i class="fas fa-rss fa-ms"></i>
+<span>RSS</span></a></nav></aside><main id=main><a href=javascript:void(0) id=closebtn onclick=navToggle()><i class="fas fa-bars fa-lg"></i></a><div class=content><h1 id=title>Crackme-1</h1><nav id=TableOfContents><ul><li><ul><li><a href=#uygulama-bilgileri>Uygulama Bilgileri</a></li><li><a href=#kullandığım-programlar>Kullandığım Programlar</a></li><li><a href=#başlangıç>Başlangıç</a></li></ul></li></ul></nav><p>Selam, yeni bir seriye başlamak istedim. Bu seride yapmak istediğim şey, CrackMe uygulamalarının çözümlerini göstermek.</p><h3 id=uygulama-bilgileri>Uygulama Bilgileri</h3><p><a href=https://crackmes.one/crackme/5ed3735f33c5d449d91ae6a9>Uygulama Linki</a><br><strong>Yaratıcı:</strong> SD4RK<br><strong>Zorluk:</strong> Çok Kolay</p><h3 id=kullandığım-programlar>Kullandığım Programlar</h3><p><strong>OllyDbg 1.10:</strong> Dinamik Analiz için.</p><h3 id=başlangıç>Başlangıç</h3><p>Öncelikle programımızı tanıyalım. Basit bir konsol ekranında bizden veri girişi bekliyor, dana sonra girdiğimiz değerin doğru veya yanlış olduğuna dair bir mesaj vererek program bitiyor.
+<img src=/crackme-1/wrong_1.png alt></p><p>Programımızı ollydbg ile açalım. Veri giriş ve kontrol işleminin gerçekleştiği yerleri bulalım. Birden fazla yol ile bulabiliriz.<br>-<strong>String Search:</strong> Konsolda gördüğümüz stringlerden herhangi birini arayabiliriz.<br>-<strong>API Breakpoint:</strong> Veri girişi fonksiyonu ile alakalı API fonksiyonlarına breakpoint koymak.</p><p>String search daha kolay olduğu için onu yapalım. Dump penceresindeyken sağ tıklayıp <em>Search For -> Binary String</em> diyerek, aramak istediğimiz string metninin bir kısmını veya tamamını ASCII bölümüne yazıp <em>Okey</em> diyelim.
+<img src=/crackme-1/dump_string_enter.png alt>
+String&rsquo;in olduğu yere gitmiş olduk, artık bu stringe nereden erişildiğine bakarak aradığımız kod satırlarını bulabiliriz. Bulduğum string&rsquo;in ilk harfini seçip, sağ tılayıp <em>Find Referances</em> diyerek nerelerde kullanıldığına bakabiliriz.
+<img src=/crackme-1/dump_findreferances.png alt>
+Buradaki adrese bakalım:
+<img src=/crackme-1/cpu_ex1.png alt>
+EDX&rsquo;e <em>Enter The Key</em> string&rsquo;i atılıyor ve bir fonksiyon çağırılıyor. Ardından başka bir fonksiyon çağırılıyor. Debugging yaparak görebiliriz ki, ilk fonksiyon sadece konsola <em>Enter The Key</em> yazdırıyor, ikincisi ise bizden veri girişi bekliyor.<br>İkinci fonksiyona breakpoint koyarak girdiğimiz verinin hangi adrese kayıt olduğunu ve sonradan nasıl kontrol işlemlerinden geçtiğini görelim. <em>abcde</em> girişi yaptım.</p><pre><code>00A720AD   .  BA 74A9A900   MOV EDX,CrackMe.00A9A974        ;  ASCII &quot;Enter the key: &quot;
+00A720B2   .  C745 FC 00000&gt;MOV DWORD PTR SS:[EBP-4],0              
+00A720B9   .  E8 E2030000   CALL CrackMe.00A724A0           ; console.write(edx)
+00A720BE   .  8D55 D8       LEA EDX,DWORD PTR SS:[EBP-28]
+00A720C1   .  B9 78E0A900   MOV ECX,CrackMe.00A9E078
+00A720C6   .  E8 150B0000   CALL CrackMe.00A72BE0           ; veri girişi fonksiyonu
+00A720CB   .  837D EC 10    CMP DWORD PTR SS:[EBP-14],10             
+00A720CF   .  8D5D D8       LEA EBX,DWORD PTR SS:[EBP-28]
+00A720D2   .  8B7D D8       MOV EDI,DWORD PTR SS:[EBP-28]
+00A720D5   .  0F43DF        CMOVNB EBX,EDI
+00A720D8   .  837D E8 10    CMP DWORD PTR SS:[EBP-18],10    ; oops, burada bir koşullu atlama yeri kodu bulduk. 
+00A720DC   .  75 6D         JNZ SHORT CrackMe.00A7214B      ; bakalım A7214B adresinde ne var
+</code></pre><p><img src=/crackme-1/cpu_a7214b.png alt></p><p>Gördüğümüz gibi, EDX&rsquo;e girilen verinin yanlış olduğuna dair bir string atılıyor ve yazdırılıyor. Yani buraya gelmemeliyiz. Peki, yukarıdaki kontrol işleminin tam olarak ne yaptığını görmek için oraya breakpoint koyalım ve inceleyelim.
+<img src=/crackme-1/cpu_brk_sizecontrol.png alt>
+<em>[EBP-18]</em> adresindeki değerin 0x10 olup olmadığını kontrol ediyor. 0x10 değilse, kötü yere atlıyor. Peki kontrol edilen değer ne? Üstteki fotoğrafın altında gösterdiğine göre 5 olduğunu gösteriyor. Girilen değerimiz <em>abcde</em> idi. Tesadüfe bakın ki, string uzunluğu da 5. Yani burada girilen verinin uzunluğunun kontrol edildiğini gördük. 0x10 uzunluğunda bir veri girmemiz gerektiğini öğrendik. Onluk sistemde 16 karakter ediyor.<br>Programı yeniden başlatarak, <em>0123456789abcdef</em> verisini girdim. İlk kontrol aşamasını atlattım. Şimdi asıl kontrol işlemlerine geçiyoruz. Geçmeden önce, birazcık aşağıdaki kodların genel bir görüntüsüne bakalım.
+<img src=/crackme-1/cpu_kontrol_genelgoruntu.png alt>
+Kontrol işlemleri buralarda gerçekleşiyor olmalı. Çok fazla koşullu atlama kodu var ve bu atlamaların çoğu girilen verinin doğru veya yanlış olduğuna dair yere gidiyor.</p><p>Son kaldığımız yerden debugging yaparak devam edelim.</p><pre><code>00A720DE   .  33F6          XOR ESI,ESI                   ; ESI = 0
+00A720E0   .  C745 D4 03000&gt;MOV DWORD PTR SS:[EBP-2C],3   ; [EBP-2C] = 0x3
+00A720E7   .  33C9          XOR ECX,ECX                   ; ECX = 0
+</code></pre><p>Bu kodlar bir döngü hazırlığı gibi duruyor. Bu kodları direk geçelim.
+<img src=/crackme-1/cpu_al_letter.png alt>
+Gördüğümüz gibi, AL&rsquo;e [ECX + EBX] değerini attık. Register penceresinden gördüğümüz üzere EBX string adresi, ECX ise muhtemelen kontrol ettiğimiz index. Az önce sıfırlamıştık zaten.<br>Peki ECX nerede artıyor?</p><pre><code>00A7213E   &gt; \41            INC ECX       
+00A7213F   .  83F9 0F       CMP ECX,0F
+</code></pre><p><em>A7213E</em> adresinde ECX&rsquo;i bir arttırıp 0xF&rsquo;ten küçük mü diye kontrol ediyoruz. Küçük ise, yukarıdaki <em>AL, [ECX + EBX]</em> adresine tekrar gidip sonraki harf için kontrol işlemlerini gerçekleştiriyoruz.</p><p>Şimdilik ECX = 0 olduğu için [AFB3E8 + 0] değerini kontrol ediyoruz. Hex olarak 0x30, ASCII tablosuna göre &ldquo;0&rdquo; karakterine işaret ediyor. Yani girdiğimiz verinin ilk değeri. Daha sonra AL&rsquo;i EDX&rsquo;e atıyoruz ve EDX&rsquo;te yine 0x30 değeri atılmış oluyor.<br>Şimdi koşullu bir atlama yerine geldik.</p><pre><code>00A720F6   .  83F9 05       CMP ECX,5                    
+00A720F9   .  7F 06         JG SHORT CrackMe.00A72101
+00A720FB   .  24 E0         AND AL,0E0
+00A720FD   .  3C 20         CMP AL,20
+00A720FF   .  EB 3B         JMP SHORT CrackMe.00A7213C
+00A72101   &gt;  83F9 09       CMP ECX,9
+...
+...
+00A7213C   &gt; \75 0D         JNZ SHORT CrackMe.00A7214B
+00A7213E   &gt; \41            INC ECX                                
+00A7213F   .  83F9 0F       CMP ECX,0F
+00A72142   .^\7C AC         JL SHORT CrackMe.00A720F0
+...
+...
+00A7214B   &gt; \BA A8A9A900   MOV EDX,CrackMe.00A9A9A8                 ;  ASCII 0A,&quot;No, this o&quot;
+00A72150   &gt;  E8 4B030000   CALL CrackMe.00A724A0
+</code></pre><p>Burada ECX 5&rsquo;ten büyükse, <em>A72101</em> adresine atlamayı, değilse devam ederek bazı işlemler yaptırıyor. Önce AL değeri ile 0xE0 değerini <em>and</em> işlemine sokuyoruz, çıkan değer 20&rsquo;den farklı ise yanlış sonuca gidiyoruz. Değil ise ECX&rsquo;i 1 arttırıp sonraki değer için aynı kontroller tekrar gerçekleştiriliyor. Bu kontrol işlemi ECX = 5 dahil olarak 5&rsquo;e kadar gerçekleşecek. Bu kodları pseudo-code formatında yazarsak şöyle olur:</p><div class=highlight><pre class=chroma><code class=language-c data-lang=c><span class=n>AL</span> <span class=o>=</span> <span class=p>[</span><span class=n>ECX</span> <span class=o>+</span> <span class=n>EBX</span><span class=p>]</span> <span class=s>&#34;0&#34;</span> <span class=s>&#34;1&#34;</span> <span class=s>&#34;2&#34;</span>
+<span class=n>EDX</span> <span class=o>=</span> <span class=n>AL</span>
+<span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;=</span> <span class=mi>5</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=n>AL</span> <span class=o>=</span> <span class=n>AL</span> <span class=o>&amp;&amp;</span> <span class=n>E0</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>AL</span> <span class=o>==</span> <span class=mh>0x20</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ECX</span><span class=o>++</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>==</span> <span class=mh>0xF</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>good_boy</span>
+		<span class=p>}</span>
+		<span class=k>else</span>
+		<span class=p>{</span>
+			<span class=n>başa</span> <span class=n>dön</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span>
+	<span class=p>{</span>
+		<span class=n>bad_boy</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>ECX = 6 olana kadar ilerletelim. Sonraki kodları inceleyelim.</p><pre><code>00A72101   &gt; \83F9 09       CMP ECX,9
+00A72104   .  7D 04         JGE SHORT CrackMe.00A7210A
+00A72106   .  03F2          ADD ESI,EDX                            
+00A72108   .  EB 34         JMP SHORT CrackMe.00A7213E
+00A7210A   &gt;  75 13         JNZ SHORT CrackMe.00A7211F
+...
+...
+00A7213E   &gt; \41            INC ECX                
+00A7213F   .  83F9 0F       CMP ECX,0F
+00A72142   .^\7C AC         JL SHORT CrackMe.00A720F0
+</code></pre><p>Burada ECX >= 9 ise ileri atla diyor. Önce ECX&rsquo;in küçük olduğu durumları anlayalım. Burada <em>ESI = ESI + EDX</em> diyoruz, ardından ECX&rsquo;i arttırıp döngünün tekrar başına dönüyoruz. ESI değerimiz başta sıfırlamıştık. Bu kodu şöyle yazabiliriz:</p><div class=highlight><pre class=chroma><code class=language-c data-lang=c><span class=k>else</span> <span class=nf>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;</span> <span class=mi>9</span> <span class=p>)</span>
+<span class=p>{</span>
+	<span class=n>ESI</span> <span class=o>=</span> <span class=n>ESI</span> <span class=o>+</span> <span class=n>EDX</span>	
+	<span class=n>ECX</span><span class=o>++</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>==</span> <span class=mh>0xF</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>good_boy</span>
+	<span class=p>}</span>
+	<span class=k>else</span>
+	<span class=p>{</span>
+		<span class=n>başa</span> <span class=n>dön</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Okunabilirliği arttırmak için en baştan küçük bir kod düzenlemesi yapalım:</p><div class=highlight><pre class=chroma><code class=language-c data-lang=c><span class=n>ESI</span> <span class=o>=</span> <span class=mi>0</span>   
+<span class=n>ECX</span> <span class=o>=</span> <span class=mi>0</span>  <span class=p>;</span> <span class=n>index</span>
+<span class=n>EBX</span> <span class=o>=</span> <span class=n>input_string</span>
+<span class=k>while</span><span class=p>(</span><span class=nb>true</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=n>AL</span> <span class=o>=</span> <span class=p>[</span><span class=n>EBX</span> <span class=o>+</span> <span class=n>ECX</span><span class=p>]</span> <span class=p>;</span> <span class=s>&#34;0&#34;</span> <span class=s>&#34;1&#34;</span> <span class=s>&#34;2&#34;</span>
+	<span class=n>EDX</span> <span class=o>=</span> <span class=n>AL</span>  
+
+	<span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;=</span> <span class=mi>5</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>AL</span> <span class=o>=</span> <span class=n>AL</span> <span class=o>&amp;&amp;</span> <span class=n>E0</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>AL</span> <span class=o>!=</span> <span class=mh>0x20</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;</span> <span class=mi>9</span> <span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ESI</span> <span class=o>=</span> <span class=n>ESI</span> <span class=o>+</span> <span class=n>EDX</span>
+	<span class=p>}</span>
+	
+	<span class=n>ECX</span><span class=o>++</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&gt;=</span> <span class=mf>0F</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>good_boy</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Şimdi ECX&rsquo;in 9 ve 9 dan büyük olduğu durumlara bakalım.</p><pre><code>00A72101   &gt; \83F9 09       CMP ECX,9
+00A72104   .  7D 04         JGE SHORT CrackMe.00A7210A  ;  
+...
+...
+00A7210A   &gt; \75 13         JNZ SHORT CrackMe.00A7211F  ; 9'a eşit değil ise atla
+00A7210C   .  8BC6          MOV EAX,ESI                              
+00A7210E   .  25 00FFFFFF   AND EAX,FFFFFF00
+00A72113   .  3D 00010000   CMP EAX,100
+00A72118   .  75 31         JNZ SHORT CrackMe.00A7214B   ; EAX != 0x100 ise atla
+00A7211A   .  80FA 40       CMP DL,40
+00A7211D   .  EB 1D         JMP SHORT CrackMe.00A7213C
+...
+...
+00A7213C   &gt; \75 0D         JNZ SHORT CrackMe.00A7214B   ; DL != 0x40 ise atla
+00A7213E   &gt;  41            INC ECX                                  
+00A7213F   .  83F9 0F       CMP ECX,0F
+00A72142   .^ 7C AC         JL SHORT CrackMe.00A720F0
+...
+...
+00A7214B   &gt; \BA A8A9A900   MOV EDX,CrackMe.00A9A9A8    ;  ASCII 0A,&quot;No, this o&quot;
+00A72150   &gt;  E8 4B030000   CALL CrackMe.00A724A0
+</code></pre><p>Öncelikle ECX&rsquo;in 9 olduğu durumu inceleyelim. <em>0A7210C</em> adresine geliyor, ESI değerimizi EAX&rsquo;e atıyoruz ve EAX ile FFFFFF00 değerini <em>and</em> işlemine sokuyoruz. Sonuç 0x100&rsquo;den farklı ise yanlış sonuca atlıyoruz. ESI değerimizi bir önceki koşul kontrolünde doldurmuştuk. Her şey bununla bitmiyor, EAX == 0x100 olduktan sonra <em>CMP DL, 0x40</em> komut satırı ile, DL(EDX) 0x40&rsquo;tan farklı ise yanlış sonuca atlıyoruz. Yani buradaki amacımız, EAX&rsquo;in belli işlemler sonucu 0x100 olmasını sağlamak ve DL&rsquo;nin 0x40 yapmak. (0x40 = &ldquo;@")</p><div class=highlight><pre class=chroma><code class=language-c data-lang=c><span class=n>ESI</span> <span class=o>=</span> <span class=mi>0</span>   
+<span class=n>ECX</span> <span class=o>=</span> <span class=mi>0</span>  <span class=p>;</span> <span class=n>index</span>
+<span class=n>EBX</span> <span class=o>=</span> <span class=n>input_string</span>
+<span class=k>while</span><span class=p>(</span><span class=nb>true</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=n>AL</span> <span class=o>=</span> <span class=p>[</span><span class=n>EBX</span> <span class=o>+</span> <span class=n>ECX</span><span class=p>]</span> <span class=p>;</span> <span class=s>&#34;0&#34;</span> <span class=s>&#34;1&#34;</span> <span class=s>&#34;2&#34;</span>
+	<span class=n>EDX</span> <span class=o>=</span> <span class=n>AL</span>  
+
+	<span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;=</span> <span class=mh>0x5</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>AL</span> <span class=o>=</span> <span class=n>AL</span> <span class=o>&amp;&amp;</span> <span class=mh>0xE0</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>AL</span> <span class=o>!=</span> <span class=mh>0x20</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;</span> <span class=mh>0x9</span> <span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ESI</span> <span class=o>=</span> <span class=n>ESI</span> <span class=o>+</span> <span class=n>EDX</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>==</span> <span class=mi>9</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>ESI</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=o>&amp;&amp;</span> <span class=mh>0xFFFFFF00</span>
+		
+		<span class=k>if</span><span class=p>(</span><span class=n>EAX</span> <span class=o>!=</span> <span class=mh>0x100</span> <span class=o>&amp;&amp;</span> <span class=n>DL</span> <span class=o>!=</span> <span class=mh>0x40</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+
+	<span class=n>ECX</span><span class=o>++</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&gt;=</span> <span class=mf>0F</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>good_boy</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Şimdi ECX&rsquo;in 9&rsquo;dan büyük olduğu durumlara bakalım.</p><pre><code>00A72101   &gt; \83F9 09       CMP ECX,9
+00A72104   .  7D 04         JGE SHORT CrackMe.00A7210A
+...
+...
+00A7210A   &gt; \75 13         JNZ SHORT CrackMe.00A7211F
+...
+...
+00A7211F   &gt; \83F9 0D       CMP ECX,0D
+00A72122   .  7C 0F         JL SHORT CrackMe.00A72133      ; ECX &lt; 0xD ise atla
+...
+...
+00A72133   &gt; \8D0412        LEA EAX,DWORD PTR DS:[EDX+EDX] ; EAX = EDX + EDX       
+00A72136   .  99            CDQ
+00A72137   .  F77D D4       IDIV DWORD PTR SS:[EBP-2C]     ; EAX = EAX / [EBP-2C]
+                                                           ; EDX = EAX % [EBP-2C]
+00A7213A   .  85D2          TEST EDX,EDX                   
+00A7213C   &gt;  75 0D         JNZ SHORT CrackMe.00A7214B     ; EDX != 0 ise atla
+00A7213E   &gt; \41            INC ECX                                  
+00A7213F   .  83F9 0F       CMP ECX,0F
+00A72142   .^ 7C AC         JL SHORT CrackMe.00A720F0
+...
+...
+00A7214B   &gt; \BA A8A9A900   MOV EDX,CrackMe.00A9A9A8    ;  ASCII 0A,&quot;No, this o&quot;
+00A72150   &gt;  E8 4B030000   CALL CrackMe.00A724A0
+</code></pre><p>Önce ECX&rsquo;in 0xD&rsquo;den küçük mü diye kontrol ediyoruz. Küçük ise, <em>EAX = EDX + EDX</em> diyoruz ve EAX&rsquo;i [EBP-2C] değerine bölüyoruz. Komut gereği sonuç EAX&rsquo;e, kalan EDX&rsquo;e yazılıyor. Daha sonra <em>EDX != 0</em> ise kötü sonuca atlıyoruz. Değil ise ECX&rsquo;i bir arttırıp sonraki döngüye geçiyoruz.</p><div class=highlight><pre class=chroma><code class=language-c data-lang=c><span class=n>ESI</span> <span class=o>=</span> <span class=mi>0</span>   
+<span class=n>ECX</span> <span class=o>=</span> <span class=mi>0</span>  <span class=p>;</span> <span class=n>index</span>
+<span class=n>EBX</span> <span class=o>=</span> <span class=n>input_string</span>
+<span class=k>while</span><span class=p>(</span><span class=nb>true</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=n>AL</span> <span class=o>=</span> <span class=p>[</span><span class=n>EBX</span> <span class=o>+</span> <span class=n>ECX</span><span class=p>]</span> <span class=p>;</span> <span class=s>&#34;0&#34;</span> <span class=s>&#34;1&#34;</span> <span class=s>&#34;2&#34;</span>
+	<span class=n>EDX</span> <span class=o>=</span> <span class=n>AL</span>  
+
+	<span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;=</span> <span class=mh>0x5</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>AL</span> <span class=o>=</span> <span class=n>AL</span> <span class=o>&amp;&amp;</span> <span class=mh>0xE0</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>AL</span> <span class=o>!=</span> <span class=mh>0x20</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;</span> <span class=mh>0x9</span> <span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ESI</span> <span class=o>=</span> <span class=n>ESI</span> <span class=o>+</span> <span class=n>EDX</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>==</span> <span class=mi>9</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>ESI</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=o>&amp;&amp;</span> <span class=mh>0xFFFFFF00</span>
+		
+		<span class=k>if</span><span class=p>(</span><span class=n>EAX</span> <span class=o>!=</span> <span class=mh>0x100</span> <span class=o>&amp;&amp;</span> <span class=n>DL</span> <span class=o>!=</span> <span class=mh>0x40</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;</span> <span class=n>D</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EDX</span> <span class=o>+</span> <span class=n>EDX</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>EAX</span> <span class=o>%</span> <span class=mi>3</span> <span class=o>!=</span> <span class=mi>0</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=n>ECX</span><span class=o>++</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&gt;=</span> <span class=mf>0F</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>good_boy</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>ECX&rsquo;in 0xD&rsquo;ye geldiği durumları inceleyelim.</p><pre><code>00A7211F   &gt; \83F9 0D       CMP ECX,0D
+00A72122   .  7C 0F         JL SHORT CrackMe.00A72133   ; ECX &lt; 0xD ise atla
+00A72124   . |8BC2          MOV EAX,EDX                 ; EAX = EDX       
+00A72126   . |99            CDQ                         ; EDX = 0
+00A72127   . |2BC2          SUB EAX,EDX                 ; EAX = EAX - 0
+00A72129   . |D1F8          SAR EAX,1                   ; EAX = EAX &gt;&gt; 1
+00A7212B   . |83E0 F0       AND EAX,FFFFFFF0            ; EAX = EAX &amp;&amp; FFFFFFF0
+00A7212E   . |83F8 20       CMP EAX,20              
+00A72131   . |EB 09         JMP SHORT CrackMe.00A7213C   
+...
+...
+00A7213C   &gt; \75 0D         JNZ SHORT CrackMe.00A7214B  ; EAX != 20 ise atla
+00A7213E   &gt;  41            INC ECX                                 
+00A7213F   .  83F9 0F       CMP ECX,0F
+00A72142   .^ 7C AC         JL SHORT CrackMe.00A720F0
+00A72144   .  BA 84A9A900   MOV EDX,CrackMe.00A9A984     ;  ASCII 0A,&quot;Good job! &quot;
+00A72149   .  EB 05         JMP SHORT CrackMe.00A72150
+</code></pre><p>Bu kod satırında yapılan şeyleri şöyle yazabiliriz:</p><div class=highlight><pre class=chroma><code class=language-c data-lang=c><span class=n>ESI</span> <span class=o>=</span> <span class=mi>0</span>   
+<span class=n>ECX</span> <span class=o>=</span> <span class=mi>0</span>  <span class=p>;</span> <span class=n>index</span>
+<span class=n>EBX</span> <span class=o>=</span> <span class=n>input_string</span>
+<span class=k>while</span><span class=p>(</span><span class=nb>true</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=n>AL</span> <span class=o>=</span> <span class=p>[</span><span class=n>EBX</span> <span class=o>+</span> <span class=n>ECX</span><span class=p>]</span> <span class=p>;</span> <span class=s>&#34;0&#34;</span> <span class=s>&#34;1&#34;</span> <span class=s>&#34;2&#34;</span>
+	<span class=n>EDX</span> <span class=o>=</span> <span class=n>AL</span>  
+
+	<span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;=</span> <span class=mi>5</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>AL</span> <span class=o>=</span> <span class=n>AL</span> <span class=o>&amp;&amp;</span> <span class=n>E0</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>AL</span> <span class=o>==</span> <span class=mh>0x20</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;</span> <span class=mi>9</span> <span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ESI</span> <span class=o>=</span> <span class=n>ESI</span> <span class=o>+</span> <span class=n>EDX</span>
+		
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span> <span class=p>(</span><span class=n>ECX</span> <span class=o>==</span> <span class=mi>9</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>ESI</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=o>&amp;&amp;</span> <span class=n>FFFFFF00</span>
+		
+		<span class=k>if</span><span class=p>(</span><span class=n>EAX</span> <span class=o>!=</span> <span class=mh>0x100</span> <span class=o>&amp;&amp;</span> <span class=n>DL</span> <span class=o>!=</span> <span class=mh>0x40</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span> <span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&lt;</span> <span class=n>D</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EDX</span> <span class=o>+</span> <span class=n>EDX</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>EAX</span> <span class=o>%</span> <span class=mi>3</span> <span class=o>!=</span> <span class=mi>0</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>else</span>
+	<span class=p>{</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EDX</span>	
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=o>&gt;&gt;</span> <span class=mi>1</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=o>&amp;&amp;</span> <span class=n>FFFFFFF0</span>
+		<span class=k>if</span><span class=p>(</span><span class=n>EAX</span> <span class=o>!=</span> <span class=mh>0x20</span><span class=p>)</span>
+		<span class=p>{</span>
+			<span class=n>bad_boy</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	
+	<span class=n>ECX</span><span class=o>++</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>&gt;=</span> <span class=mf>0F</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>good_boy</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Kodumuzun son hali böyle oldu. Ancak yer örnek bir string olarak şunu deneyebilirsiniz: <em>012345dd8@fff@@@</em></p><p>Kendim manuel olarak çözdüm ancak böyle kodları manuel olarak çözmek biraz zaman kaybıdır. Başlangıçta IDA gibi statik analiz programlarında analiz etmek tavsiye edilir.</p><div class=nav-next-prev><div class=nav-prev><a class=grayed-out href=javascript:void()><i class="fas fa-chevron-left"></i></a></div><a class=nav-top href=#>top</i></a><div class=nav-next><a href=http://requizm.github.io/blog/crackme-2/><i class="fas fa-chevron-right"></i></a></div></div></div><footer><div class=footer-content><div class=contact-info><div class=footer-mail><i class="far fa-envelope"></i> <a href=mailto:mehmet41650@gmail.com>mehmet41650@gmail.com</a></div></div><p class="copyright meta">Copyright © 2008–2019, Steve Francia and the Hugo Authors; all rights reserved.</p></div></footer></main></body><script src=http://requizm.github.io/js/navbutton.js></script></html>

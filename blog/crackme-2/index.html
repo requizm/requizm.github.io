@@ -1,0 +1,356 @@
+<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=Author content="requizm"><meta name=keywords content="requizm blog"><link rel=stylesheet href=http://requizm.github.io/css/syntax.css><link rel=stylesheet href=http://requizm.github.io/css/style.css><script src=https://kit.fontawesome.com/1b7478c139.js crossorigin=anonymous></script><title>requizm</title></head><body><aside id=sidenav><header><a id=branding href=http://requizm.github.io/>requizm</a></header><nav><a href=/><i class="fas fa-home fa-sm"></i>
+<span>home</span></a>
+<a href=/blog/><i class="fas fa-keyboard fa-ms"></i>
+<span>blog</span></a>
+<a href=/tags><i class="fas fa-tags fa-ms"></i>
+<span>tags</span></a>
+<a href=https://github.com/requizm target=_blank><i class="fab fa-github fa-ms"></i>
+<span>github</span></a>
+<a href=/index.xml><i class="fas fa-rss fa-ms"></i>
+<span>RSS</span></a></nav></aside><main id=main><a href=javascript:void(0) id=closebtn onclick=navToggle()><i class="fas fa-bars fa-lg"></i></a><div class=content><h1 id=title>Crackme-2</h1><nav id=TableOfContents><ul><li><ul><li><a href=#uygulama-bilgileri>Uygulama Bilgileri</a></li><li><a href=#kullandığım-programlar>Kullandığım Programlar</a></li><li><a href=#başlangıç>Başlangıç</a></li></ul></li></ul></nav><h3 id=uygulama-bilgileri>Uygulama Bilgileri</h3><p><a href=https://crackmes.one/crackme/5ecad51b33c5d449d91ae60c>Uygulama Linki</a><br><strong>Yaratıcı:</strong> xy0<br><strong>Zorluk:</strong> Kolay</p><h3 id=kullandığım-programlar>Kullandığım Programlar</h3><p><strong>OllyDbg 1.10:</strong> Dinamik Analiz için.</p><h3 id=başlangıç>Başlangıç</h3><p>Basit bir konsol ekranında bizden veri girişi bekliyor, dana sonra girdiğimiz değerin doğru veya yanlış olduğuna dair bir mesaj vererek program bitiyor.
+<img src=/crackme-2/wrong_1.png alt></p><p>Bir önceki serideki gibi string search yapalım ve <em>Enter Key:</em> parametresinin push edildiği yere gidelim.
+<img src=/crackme-2/cpu_ex1.png alt></p><p><em>Enter Key:</em> string&rsquo;i stack&rsquo;e atılıyor ve <em>AB3FFC</em> fonksiyonu çağırılıyor. EAX&rsquo;e atılan adresten anlayabiliriz ki, çağırılan fonksiyon <em>std::cout</em><br>Ardından başka bir fonksiyon çağırılıyor. Tekrar ECX&rsquo;e atılan adresten anlayabiliriz ki, çağırılan fonksiyon <em>std::cin</em><br>İkinci fonksiyon bitimine breakpoint koyarak girdiğimiz verinin hangi adrese kayıt olduğunu ve sonradan nasıl kontrol işlemlerinden geçtiğini görelim. <em>abcd</em> girişi yaptım.</p><p>Alt taraftaki <em>Success!</em> ve <em>Failed!</em> işlemlerine nasıl ulaşacağımıza incelersek, ECX&rsquo;in 0 olması gerektiğini anlıyoruz. Peki, ECX&rsquo;i 0 yapacak şey ne? Oradaki kodu alıntılayalım:</p><pre><code>00AA80F0    50              PUSH EAX                                  
+00AA80F1    6A 00           PUSH 0
+00AA80F3    68 5C050000     PUSH 55C
+00AA80F8    E8 3C92FFFF     CALL CrackMe.00AA1339  
+00AA80FD    83C4 10         ADD ESP,10
+00AA8100    0FB6C8          MOVZX ECX,AL
+00AA8103    85C9            TEST ECX,ECX
+00AA8105    74 0C           JE SHORT CrackMe.00AA8113
+00AA8107    C785 F0FEFFFF 0&gt;MOV DWORD PTR SS:[EBP-110],CrackMe.00AB4&gt;; ASCII &quot;Success!&quot;
+00AA8111    EB 0A           JMP SHORT CrackMe.00AA811D
+00AA8113    C785 F0FEFFFF 1&gt;MOV DWORD PTR SS:[EBP-110],CrackMe.00AB4&gt;; ASCII &quot;Failed!&quot;
+</code></pre><p><em>AA1339</em> fonksiyonu çağırılırken girilen parametrelere dikkat edelim. Debugging yaparak oradaki EAX&rsquo;in input stringimiz olduğunu görebiliriz. Peki 0 ve 0x55C ne? Belki 0x55C bizi sonuca yaklaştıracak bir şey? Bu fonksiyonu inceleyelim.
+<img src=/crackme-2/cpu_controlfunc_start.png alt>
+Oops, alt tarafta iç içe for döngüsü bulduk galiba. Orada önemli şeylerin yapıldığı kesin, ancak amacımızı unutmayalım. Bu fonksiyonun 0 dönmesini sağlamak zorundayız. O yüzden for döngülerini şimdilik geçelim ve altlara bakalım.<br><img src=/crackme-2/cpu_controlfunc_end.png alt>
+Döngü biter bitmez bazı kontrol işlemleri görüyoruz. <em>[ARG1] == [LOCAL4]</em> işlemi oluyor. <em>[ARG1]</em> 0x55C idi, <em>[LOCAL4]</em> bir şekilde 0xCB olmuş. Bu şekilde devam edersek, sonraki JNZ komutunda ileri atlayıp, <em>[LOCAL63]</em> değişkenine 0 atmış olacağız ve EAX&rsquo;te 0&rsquo;dan farklı bir değer döndürmüş olacağız. Yani burada JNZ&rsquo;yi pas geçip <em>[LOCAL63]</em> değişkenine 1&rsquo;i atarsak, başarılı mı olmuş olacağız? Evet. Demek ki yapmamız gereken şey, <em>[ARG1] == [LOCAL4]</em> denklemini sağlamak. Artık iç içe for döngülerine gelip <em>LOCAL4</em> değişkenine neler olduğunu gözlemleyebiliriz. Öncelikle for döngülerinin tamamının bir görüntüsünü görelim.
+<img src=/crackme-2/cpu_for_ex1.png alt></p><p>Komutların solundaki ok işaretlerinden for döngülerinin başlangıç ve bitiş yerlerini görebiliyoruz.</p><pre><code>00AA343A  |.  C745 E4 00000&gt;MOV [LOCAL.7],0             ;LOCAL7 = 0
+00AA3441  |.  EB 09         JMP SHORT CrackMe.00AA344C  ;FOR başlangıcı
+00AA3443  |&gt; /8B45 E4       /MOV EAX,[LOCAL.7]             
+00AA3446  |. |83C0 01       |ADD EAX,1                 
+00AA3449  |. |8945 E4       |MOV [LOCAL.7],EAX          ;üstteki üç komut ile beraber
+                                                        ;LOCAL7 += 1
+00AA344C  |&gt; |8B45 10        MOV EAX,[ARG.3]           
+00AA344F  |.  50            |PUSH EAX
+00AA3450  |.  E8 46DCFFFF   |CALL CrackMe.00AA109B      ;strlen(EAX)     
+                                                        ;fonksiyon içine bakarak strlen yazısını görebiliriz 
+00AA3455  |.  83C4 04       |ADD ESP,4
+00AA3458  |.  3945 E4       |CMP [LOCAL.7],EAX
+00AA345B  |.  73 6A         |JNB SHORT CrackMe.00AA34C7 ;LOCAL7 &gt;= EAX ise döngüyü bitir
+...
+...
+00AA34C7  |&gt; \8B45 08       MOV EAX,[ARG.1]             ;FOR bitişi
+</code></pre><p><em>LOCAL7</em>&lsquo;nin index değişkeni olduğunu görebiliyoruz. Pseudo-code örneklerine başlayabiliriz.</p><div class=highlight><pre class=chroma><code class=language-cpp data-lang=cpp><span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL7</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL7</span> <span class=o>&lt;</span> <span class=n>input</span><span class=p>.</span><span class=n>length</span><span class=p>();</span> <span class=n>i</span><span class=o>++</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=c1>//bla bla
+</span><span class=c1></span><span class=p>}</span>
+</code></pre></div><p>Şimdi ikinci for döngüsünü inceleyelim.</p><pre><code>00AA3471  |.  C745 CC 00000&gt;|MOV [LOCAL.13],0            ;LOCAL13 = 0
+00AA3478  |.  EB 09         |JMP SHORT CrackMe.00AA3483  ;FOR başlangıcı
+00AA347A  |&gt;  8B45 CC       |/MOV EAX,[LOCAL.13]
+00AA347D  |.  83C0 01       ||ADD EAX,1
+00AA3480  |.  8945 CC       ||MOV [LOCAL.13],EAX         ;üstteki üç komut ile beraber
+                                                         ;LOCAL13 += 1
+00AA3483  |&gt;  8D4D D8       | LEA ECX,[LOCAL.10]
+00AA3486  |.  E8 C6DFFFFF   ||CALL CrackMe.00AA1451      
+00AA348B  |.  3945 CC       ||CMP [LOCAL.13],EAX
+00AA348E  |.  73 32         ||JNB SHORT CrackMe.00AA34C2 ;LOCAL13 &lt;= EAX ise döngüyü bitir
+</code></pre><p>Burada <em>AA1451</em> fonksiyonun döndürdüğü değere göre bir döngü tekrarı var. İnceleyelim o zaman.
+<img src=/crackme-2/cpu_j_size.png alt>
+Ortalarda şöyle bir komut görüyoruz:</p><pre><code>00AA380C   .  B8 08000000   MOV EAX,8
+</code></pre><p>Debugging yaparak kontrol edebiliriz ki, bu fonksiyonun tek amacı 8 döndürmek. Yaratıcı burada sadece kafa karıştırmak istemiş. For döngülerimizin temelini anlamış olduk.</p><div class=highlight><pre class=chroma><code class=language-cpp data-lang=cpp><span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL7</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL7</span> <span class=o>&lt;</span> <span class=n>input</span><span class=p>.</span><span class=n>length</span><span class=p>();</span> <span class=n>LOCAL7</span><span class=o>++</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=c1>//bla bla
+</span><span class=c1></span>	<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL13</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL13</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>;</span> <span class=n>LOCAL13</span><span class=o>++</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=c1>//bla bla
+</span><span class=c1></span>	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Şimdi gelelim asıl kontrol işlemlerine. İkinci for döngüsüne girmeden azıcık yukarıya bakarsak, bir fonksiyon çağırıldığını görüyoruz.</p><pre><code>00AA345D  |.  8B45 10       |MOV EAX,[ARG.3]             
+00AA3460  |.  0345 E4       |ADD EAX,[LOCAL.7]           
+00AA3463  |.  0FBE00        |MOVSX EAX,BYTE PTR DS:[EAX] ;üstteki 2 komut ile beraber
+                                                         ;EAX = (byte)ARG3[LOCAL7]
+00AA3466  |.  99            |CDQ                         ;EDX = 0
+00AA3467  |.  52            |PUSH EDX
+00AA3468  |.  50            |PUSH EAX
+00AA3469  |.  8D4D D8       |LEA ECX,[LOCAL.10]
+00AA346C  |.  E8 FFDEFFFF   |CALL CrackMe.00AA1370       ; func_AA1370(EAX, 0)
+</code></pre><p><em>AA1370</em> fonksiyonundan önce ECX&rsquo;e atılan <em>LOCAL10</em> değişkenine dikkat edelim.<br><img src=/crackme-2/cpu_local10.png alt>
+Altta gösterdiğine göre kendisi bir pointer. Peki, buradaki adreste önemli bir şey mi var? Fonksiyondan önce bakarsak, CC olduğunu görüyoruz. Pek bir anlam ifade ettiğini söyleyemem. Peki, fonksiyondan sonra bakalım? Vee <em>(byte)ARG3[LOCAL7]</em><br>Yani parametre olarak girdiğimiz EAX&rsquo;in aynısı. Sadece kafa karıştırmak için yazılmış. Toparlarsak:</p><div class=highlight><pre class=chroma><code class=language-cpp data-lang=cpp><span class=n>string</span> <span class=n>input</span><span class=p>;</span>
+<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL7</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL7</span> <span class=o>&lt;</span> <span class=n>input</span><span class=p>.</span><span class=n>length</span><span class=p>();</span> <span class=n>LOCAL7</span><span class=o>++</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=o>*</span><span class=n>LOCAL10</span> <span class=o>=</span> <span class=n>func_AA1370</span><span class=p>(</span><span class=n>input</span><span class=p>[</span><span class=n>LOCAL7</span><span class=p>],</span> <span class=mi>0</span><span class=p>);</span>
+	<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL13</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL13</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>;</span> <span class=n>LOCAL13</span><span class=o>++</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=c1>//bla bla
+</span><span class=c1></span>	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Şimdi ikinci for döngüsündeki kontrol işlemlerine bakalım. Döngünün sonunda <em>LOCAL4</em> değişkenin değiştiğini görüyoruz.</p><pre><code>00AA34AB  |.  56            ||PUSH ESI
+00AA34AC  |.  51            ||PUSH ECX
+00AA34AD  |.  52            ||PUSH EDX
+00AA34AE  |.  50            ||PUSH EAX
+00AA34AF  |.  E8 E9DEFFFF   ||CALL CrackMe.00AA139D ;func_AA139D(EAX, EDX, ECX, ESI)
+00AA34B4  |.  0345 F0       ||ADD EAX,[LOCAL.4]
+00AA34B7  |.  1355 F4       ||ADC EDX,[LOCAL.3]
+00AA34BA  |.  8945 F0       ||MOV [LOCAL.4],EAX     ; LOCAL4 += EAX
+00AA34BD  |.  8955 F4       ||MOV [LOCAL.3],EDX
+</code></pre><p>Demek ki, son kararı veren fonksiyon <em>func_AA139D</em>. Ve belli ki, EAX döndürüyor. Peki bu fonksiyon parametrelerini belirleyen şeyler nedir? Birazcık yukarıya bakalım.</p><pre><code>00AA3490  |.  8B45 CC       ||MOV EAX,[LOCAL.13]
+00AA3493  |.  50            ||PUSH EAX
+00AA3494  |.  8D4D D8       ||LEA ECX,[LOCAL.10]    
+00AA3497  |.  E8 F2DEFFFF   ||CALL CrackMe.00AA138E  ;func_AA138E(LOCAL13)
+00AA349C  |.  0FB6C0        ||MOVZX EAX,AL
+00AA349F  |.  99            ||CDQ                    ; EDX = 0
+00AA34A0  |.  83F0 02       ||XOR EAX,2              ; EAX = EAX XOR 2
+00AA34A3  |.  83F2 00       ||XOR EDX,0              ; EDX = EDX XOR 0 (yine 0)
+00AA34A6  |.  8B4D CC       ||MOV ECX,[LOCAL.13]     ; ECX = [LOCAL13]
+00AA34A9  |.  33F6          ||XOR ESI,ESI            ; ESI = 0
+00AA34AB  |.  56            ||PUSH ESI
+00AA34AC  |.  51            ||PUSH ECX
+00AA34AD  |.  52            ||PUSH EDX
+00AA34AE  |.  50            ||PUSH EAX
+00AA34AF  |.  E8 E9DEFFFF   ||CALL CrackMe.00AA139D  ;func_AA139D(EAX, 0, LOCAL13, 0)
+</code></pre><p><em>EAX = EAX XOR 2</em> komutu gerçekleştiğine göre, EAX&rsquo;in önceden belirlenmiş olması lazım. XOR komutunun birazcık yukarısında <em>AA138E</em> fonksiyonu çağırıldığını ve ardından <em>EAX = (byte)EAX</em> komutundan EAX&rsquo;in belirlendiğini görüyoruz. Ayrıca EDX&rsquo;in de bir değer alıyor gibi. Demekki yapmamız gereken şey, <em>AA138E</em> fonksiyonunu çözmek. Son pseudo-code&rsquo;u yazalım ve yeni fonksiyonu çözmeye başlayalım.</p><div class=highlight><pre class=chroma><code class=language-cpp data-lang=cpp><span class=n>string</span> <span class=n>input</span><span class=p>;</span>
+<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL7</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL7</span> <span class=o>&lt;</span> <span class=n>input</span><span class=p>.</span><span class=n>length</span><span class=p>();</span> <span class=n>LOCAL7</span><span class=o>++</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=o>*</span><span class=n>LOCAL10</span> <span class=o>=</span> <span class=n>func_AA1370</span><span class=p>(</span><span class=n>input</span><span class=p>[</span><span class=n>LOCAL7</span><span class=p>],</span> <span class=mi>0</span><span class=p>);</span>
+	<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL13</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL13</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>;</span> <span class=n>LOCAL13</span><span class=o>++</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ECX</span> <span class=o>=</span> <span class=n>LOCAL10</span><span class=p>;</span>             
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA138E</span><span class=p>(</span><span class=n>LOCAL13</span><span class=p>);</span>
+		
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=n>XOR</span> <span class=mi>2</span><span class=p>;</span>
+		<span class=n>EDX</span> <span class=o>=</span> <span class=n>EDX</span> <span class=n>XOR</span> <span class=mi>0</span><span class=p>;</span>
+		<span class=n>ESI</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+		<span class=n>ECX</span> <span class=o>=</span> <span class=n>LOCAL13</span><span class=p>;</span>
+		
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA139D</span><span class=p>(</span><span class=n>EAX</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=n>ECX</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+		<span class=n>LOCAL4</span> <span class=o>+=</span> <span class=n>EAX</span><span class=p>;</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Çözmemiz gereken fonksiyon:
+<img src=/crackme-2/cpu_func1.png alt>
+İlk komutlarda önemli bir şey gözükmüyor. Şu kodları inceleyelim</p><pre><code>00AA3380  |.  894D F8       MOV [LOCAL.2],ECX
+00AA3383  |.  B9 27A0AB00   MOV ECX,CrackMe.00ABA027
+00AA3388  |.  E8 B0E0FFFF   CALL CrackMe.00AA143D       ;Bu fonksiyonun yaptığı önemli bir şey yok
+00AA338D  |.  837D 08 08    CMP [ARG.1],8             
+00AA3391  |.  72 15         JB SHORT CrackMe.00AA33A8   ;ARG1 sürekli 8'den küçük olacağı için 
+                                                        ;atlama her zaman gerçekleşecek  
+...
+...
+00AA33A8  |&gt; \8B4D 08       MOV ECX,[ARG.1]           
+00AA33AB  |.  51            PUSH ECX        
+00AA33AC  |.  8B4D F8       MOV ECX,[LOCAL.2]           ;ECX = LOCAL10
+00AA33AF  |.  E8 37DDFFFF   CALL CrackMe.00AA10EB       ;func_AA10EB(ARG1)
+00AA33B4  |.  8885 33FFFFFF MOV BYTE PTR SS:[EBP-CD],AL 
+00AA33BA  |&gt;  8A85 33FFFFFF MOV AL,BYTE PTR SS:[EBP-CD] 
+</code></pre><p>Bu fonksiyonu şöyle yazabiliriz.</p><div class=highlight><pre class=chroma><code class=language-c++ data-lang=c++><span class=kt>int</span> <span class=nf>func_AA138E</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>index</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=n>func_AA10EB</span><span class=p>(</span><span class=n>index</span><span class=p>);</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+</code></pre></div><p>Şimdi yeni bir bilinmeyen fonksiyonumuz var. <em>AA10EB</em>. Bunu inceleyelim.
+<img src=/crackme-2/cpu_func1_1.png alt>
+Ortalarda aritmatiksel işlemler olduğunu görebiliyoruz. Burada ilk fonksiyon çağrılana kadar önemli bir şey yapılmıyor. <em>JE</em> ve <em>JMP</em> komutlarının olduğu yerde ise <em>LOCAL52</em> değişkenine 1 veya 0 değeri atılıyor ve bu değer AL&rsquo;ye atılarak döndürülmüş oluyor. (AL&rsquo;ye atılan değer <em>[EBP-D0]</em> olarak gözüküyor ancak orada küçük bir hata olmuş)<br>Şimdi aritmatiksel işlemleri inceleyelim</p><pre><code>00AA35CD  |.  8B75 08       MOV ESI,[ARG.1]   ;ESI = [ARG1]
+00AA35D0  |.  C1EE 05       SHR ESI,5         ;ESI = ESI &gt;&gt; 5
+00AA35D3  |.  8B45 08       MOV EAX,[ARG.1]   ;EAX = [ARG1]
+00AA35D6  |.  33D2          XOR EDX,EDX       ;EDX = 0
+00AA35D8  |.  B9 20000000   MOV ECX,20        ;ECX = 0x20
+00AA35DD  |.  F7F1          DIV ECX           ;EAX = EAX / ECX
+                                              ;EDX = EAX % ECX
+00AA35DF  |.  B8 01000000   MOV EAX,1         ;EAX = 1
+00AA35E4  |.  8BCA          MOV ECX,EDX       ;ECX = EDX
+00AA35E6  |.  D3E0          SHL EAX,CL        ;EAX = EAX &lt;&lt; CL     
+00AA35E8  |.  8B4D F8       MOV ECX,[LOCAL.2] ;ECX = [LOCAL2]    [LOCAL2] = [LOCAL10]  
+00AA35EB  |.  2304B1        AND EAX,DWORD PTR DS:[ECX+ESI*4]    ;EAX = EAX &amp; [ECX + ESI * 4]   
+00AA35EE  |. /74 0C         JE SHORT CrackMe.00AA35FC  ;EAX == 0 ise bu adrese git
+00AA35F0  |. |C785 30FFFFFF&gt;MOV [LOCAL.52],1
+00AA35FA  |. |EB 0A         JMP SHORT CrackMe.00AA3606
+00AA35FC  |&gt; \C785 30FFFFFF&gt;MOV [LOCAL.52],0
+00AA3606  |&gt;  8A85 30FFFFFF MOV AL,BYTE PTR SS:[EBP-D0]
+</code></pre><p>Biraz karışık gözüktüğünün farkındayım. Önce bunları bir yere yazalım.</p><pre><code>ESI = [ARG1]
+ESI = ESI &gt;&gt; 5
+EAX = [ARG1]
+EDX = 0
+ECX = 0X20
+EAX = EAX / ECX
+EDX = EAX % ECX
+EAX = 1
+ECX = EDX
+EAX = EAX &lt;&lt; CL 
+ECX = [LOCAL2] 
+EAX = EAX &amp; [ECX + ESI * 4]
+</code></pre><p>ESI başta <em>ARG1</em> değerini alıyor. Daha sonra 5 bit sağa kaydırılıyor. Burada şöyle bir gerçek var ki, <em>ARG1</em> değerimiz 0 ile 7 arasında bir sayı olacağı için, bu işlem sonucu her türlü 0 olacaktır. ESI ileriki adımlarda değişmediği için ESI yazan yerlere 0 yazabiliriz ya da silebiliriz. Yeni işlem sırası böyle oldu.</p><pre><code>ESI = 0
+EAX = [ARG1]
+EDX = 0
+ECX = 0X20
+EAX = EAX / ECX
+EDX = EAX % ECX
+EAX = 1
+ECX = EDX
+EAX = EAX &lt;&lt; CL 
+ECX = [LOCAL2] 
+EAX = EAX &amp; [ECX]
+</code></pre><p>EAX, <em>ARG1</em> değerini alıyor. ECX, 0x20 değerini alıyor. Daha sonra EAX, ECX&rsquo;e bölünüyor. EDX ise kalan sayıyı alıyor. Ancak yine bir gerçek var ki, <em>ARG1</em> değerimiz 0 ile 7 arasında bir sayı olacağı için EDX her zaman <em>ARG1</em> değerini almış olacak. EAX ise 0 olacak. EDX daha sonra değişmediği için EDX yazan yerlere <em>ARG1</em> yazabiliriz. Yeni işlem sırası:</p><pre><code>EDX = [ARG1]
+ECX = 0X20
+EAX = 1
+ECX = EDX
+EAX = EAX &lt;&lt; CL 
+ECX = [LOCAL2] 
+EAX = EAX &amp; [ECX]
+</code></pre><p>EAX&rsquo;e 1 atandıktan sonra, <em>ECX = EDX</em> oluyor ve EAX = <em>EAX &#171; CL</em> aritmatiksel işlemi gerçekleşiyor. Burayı şöyle kısaltabiliriz.</p><pre><code>EDX = [ARG1]
+EAX = 1 &lt;&lt; EDX 
+ECX = [LOCAL2] 
+EAX = EAX &amp; [ECX]
+</code></pre><p>ECX&rsquo;e <em>LOCAL2</em> değişkeni atanıyor. <em>LOCAL2</em> bir pointer&rsquo;dı ve for döngüsündeki <em>[LOCAL10]</em> değişkenine eşitti. Bu demek oluyor ki, kontrol edilen harf <em>a</em> ise, <em>LOCAL2</em>&lsquo;de yer alan değer bunun ASCII karşılığıdır. (0x61)<br>Biraz daha sadeleştirebiliriz:</p><pre><code>EAX = 1 &lt;&lt; [ARG1]
+EAX = EAX &amp; [LOCAL2] 
+</code></pre><p>Son işlemden sonra <em>EAX == 0</em> ise 0 döndürüyor. 0&rsquo;dan farklı ise 1 döndürüyor. Pseudo-code olarak yazarsak şöyle olur:</p><div class=highlight><pre class=chroma><code class=language-c++ data-lang=c++><span class=kt>int</span> <span class=nf>func_AA10EB</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=n>a</span> <span class=o>=</span> <span class=mi>1</span> <span class=o>&lt;&lt;</span> <span class=n>index</span>  <span class=c1>//EAX = pow(2, index]);
+</span><span class=c1></span>	<span class=k>if</span><span class=p>(</span><span class=n>a</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+	<span class=p>}</span>
+	<span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+<span class=p>}</span>
+</code></pre></div><p>Bu fonksiyonu tamamladık. Yaptığımız kadarını yazarsak:</p><div class=highlight><pre class=chroma><code class=language-c++ data-lang=c++><span class=n>string</span> <span class=n>input</span><span class=p>;</span>
+<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL7</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL7</span> <span class=o>&lt;</span> <span class=n>input</span><span class=p>.</span><span class=n>length</span><span class=p>();</span> <span class=n>LOCAL7</span><span class=o>++</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=o>*</span><span class=n>LOCAL10</span> <span class=o>=</span> <span class=n>func_AA1370</span><span class=p>(</span><span class=n>input</span><span class=p>[</span><span class=n>LOCAL7</span><span class=p>],</span> <span class=mi>0</span><span class=p>);</span>
+	<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL13</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL13</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>;</span> <span class=n>LOCAL13</span><span class=o>++</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ECX</span> <span class=o>=</span> <span class=n>LOCAL10</span><span class=p>;</span>             
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA138E</span><span class=p>(</span><span class=n>LOCAL13</span><span class=p>);</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=n>XOR</span> <span class=mi>2</span><span class=p>;</span>
+		<span class=n>EDX</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+		<span class=n>ESI</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+		<span class=n>ECX</span> <span class=o>=</span> <span class=n>LOCAL13</span><span class=p>;</span>
+		
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA139D</span><span class=p>(</span><span class=n>EAX</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=n>ECX</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+		<span class=n>LOCAL4</span> <span class=o>+=</span> <span class=n>EAX</span><span class=p>;</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kt>int</span> <span class=nf>func_AA138E</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>index</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=n>func_AA10EB</span><span class=p>(</span><span class=n>index</span><span class=p>);</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kt>int</span> <span class=nf>func_AA10EB</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=n>a</span> <span class=o>=</span> <span class=mi>1</span> <span class=o>&lt;&lt;</span> <span class=n>index</span>  <span class=c1>//EAX = pow(2, index]);
+</span><span class=c1></span>	<span class=k>if</span><span class=p>(</span><span class=n>a</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+	<span class=p>}</span>
+	<span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+<span class=p>}</span>
+</code></pre></div><p>Baştaki for döngülerine döndük. Artık ilk EAX&rsquo;in ne olduğunu biliyoruz. Şimdi sıra geldi alttaki fonksiyona. <em>AA139D</em>
+<img src=/crackme-2/cpu_func2.png alt>
+Kısa bir fonksiyona benziyor. OllyDbg yeteri kadar iyi analiz edemedi ancak şunları yazabiliriz ki:<br>[ESP + 0x4] = [ARG1]<br>[ESP + 0x8] = [ARG2]<br>[ESP + 0xC] = [ARG3]<br>[ESP + 0x10] = [ARG4]</p><p>Kodların ilk RETN komutuna kadar olan kısmını <em>[ARG]</em> şeklinde düzenleyerek inceleyelim:</p><pre><code>00AAAD30   &gt; \8B4424 08     MOV EAX, [ARG2]
+00AAAD34   .  8B4C24 10     MOV ECX, [ARG4]
+00AAAD38   .  0BC8          OR ECX,EAX                  ;ECX = [ARG2] | [ARG4]
+00AAAD3A   .  8B4C24 0C     MOV ECX, [ARG3]
+00AAAD3E   .  75 09         JNZ SHORT CrackMe.00AAAD49  ;ECX != 0 ise adrese git
+00AAAD40   .  8B4424 04     MOV EAX, [ARG1]             ;EAX = [ARG1]
+00AAAD44   .  F7E1          MUL ECX                     ;EAX = EAX * ECX 
+00AAAD46   .  C2 1000       RETN 10
+</code></pre><p>İlk 3 komuttan anlayacağımız üzere, <em>ECX = [ARG2] | [ARG4]</em> oluyor. Burada Z bayrağımız bir değere sahip oluyor. Daha sonra <em>ECX = [ARG3]</em> komutu işleniyor, <em>ECX == 0</em> ise atlama işlemi gerçekleşmiyor. Burayı şöyle bir koda dökebiliriz</p><div class=highlight><pre class=chroma><code class=language-c++ data-lang=c++><span class=kt>int</span> <span class=nf>func_AA139D</span><span class=p>(</span><span class=kt>int</span> <span class=n>ARG1</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG2</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG3</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG4</span><span class=p>)</span> <span class=o>//</span><span class=n>ARG2</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>  <span class=n>ARG4</span> <span class=o>=</span> <span class=mi>0</span>
+<span class=p>{</span>
+	<span class=n>ECX</span> <span class=o>=</span> <span class=p>[</span><span class=n>ARG2</span><span class=p>]</span> <span class=o>|</span> <span class=p>[</span><span class=n>ARG4</span><span class=p>];</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>ECX</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=p>[</span><span class=n>ARG3</span><span class=p>]</span> <span class=o>*</span> <span class=p>[</span><span class=n>ARG1</span><span class=p>];</span>
+		<span class=k>return</span> <span class=n>EAX</span><span class=p>;</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+
+</code></pre></div><p>İlk satırdaki veya işlemine odaklanalım. <em>ARG2</em> ve <em>ARG4</em> her zaman 0 idi. Yani bu işlemin sonucu her zaman 0 olacak ve if koşulunu sağlıyor olacağız. Şöyle yazabiliriz:</p><div class=highlight><pre class=chroma><code class=language-c++ data-lang=c++><span class=kt>int</span> <span class=nf>func_AA139D</span><span class=p>(</span><span class=kt>int</span> <span class=n>ARG1</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG2</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG3</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG4</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=k>return</span> <span class=p>([</span><span class=n>ARG3</span><span class=p>]</span> <span class=o>*</span> <span class=p>[</span><span class=n>ARG1</span><span class=p>]);</span>
+<span class=p>}</span>
+</code></pre></div><p>Kodların tamamını tekrar yazarsak:</p><div class=highlight><pre class=chroma><code class=language-c++ data-lang=c++><span class=n>string</span> <span class=n>input</span><span class=p>;</span>
+<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL7</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL7</span> <span class=o>&lt;</span> <span class=n>input</span><span class=p>.</span><span class=n>length</span><span class=p>();</span> <span class=n>LOCAL7</span><span class=o>++</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=o>*</span><span class=n>LOCAL10</span> <span class=o>=</span> <span class=n>func_AA1370</span><span class=p>(</span><span class=n>input</span><span class=p>[</span><span class=n>LOCAL7</span><span class=p>],</span> <span class=mi>0</span><span class=p>);</span>
+	<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL13</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL13</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>;</span> <span class=n>LOCAL13</span><span class=o>++</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=n>ECX</span> <span class=o>=</span> <span class=n>LOCAL10</span><span class=p>;</span>             
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA138E</span><span class=p>(</span><span class=n>LOCAL13</span><span class=p>);</span>
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=n>XOR</span> <span class=mi>2</span><span class=p>;</span>
+		<span class=n>EDX</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+		<span class=n>ESI</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>
+		<span class=n>ECX</span> <span class=o>=</span> <span class=n>LOCAL13</span><span class=p>;</span>
+		
+		<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA139D</span><span class=p>(</span><span class=n>EAX</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=n>ECX</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+		<span class=n>LOCAL4</span> <span class=o>+=</span> <span class=n>EAX</span><span class=p>;</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kt>int</span> <span class=nf>func_AA138E</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>index</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=n>func_AA10EB</span><span class=p>(</span><span class=n>index</span><span class=p>);</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kt>int</span> <span class=nf>func_AA10EB</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=n>a</span> <span class=o>=</span> <span class=mi>1</span> <span class=o>&lt;&lt;</span> <span class=n>index</span>  <span class=c1>//EAX = pow(2, index]);
+</span><span class=c1></span>	<span class=k>if</span><span class=p>(</span><span class=n>a</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+	<span class=p>}</span>
+	<span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+<span class=p>}</span>
+
+<span class=kt>int</span> <span class=nf>func_AA139D</span><span class=p>(</span><span class=kt>int</span> <span class=n>ARG1</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG2</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG3</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG4</span><span class=p>)</span> <span class=o>//</span><span class=n>ARG2</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>  <span class=n>ARG4</span> <span class=o>=</span> <span class=mi>0</span>
+<span class=p>{</span>
+	<span class=k>return</span> <span class=p>([</span><span class=n>ARG3</span><span class=p>]</span> <span class=o>*</span> <span class=p>[</span><span class=n>ARG1</span><span class=p>]);</span>
+<span class=p>}</span>
+</code></pre></div><p>Bitti satılır, for döngüsünü biraz sadeleştirip döngü sonrası kontrol işlemini de eklersek şöyle olur:</p><div class=highlight><pre class=chroma><code class=language-c++ data-lang=c++><span class=kt>int</span> <span class=nf>func_AA1339</span><span class=p>(</span><span class=kt>int</span> <span class=n>a</span><span class=p>,</span> <span class=kt>int</span> <span class=n>b</span><span class=p>,</span> <span class=n>string</span> <span class=n>input</span><span class=p>)</span> <span class=n>a</span> <span class=o>=</span> <span class=mh>0x55C</span><span class=p>;</span>   <span class=n>b</span> <span class=o>=</span> <span class=mi>0</span>
+<span class=p>{</span>
+	<span class=n>string</span> <span class=n>input</span><span class=p>;</span>
+	<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL7</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL7</span> <span class=o>&lt;</span> <span class=n>input</span><span class=p>.</span><span class=n>length</span><span class=p>();</span> <span class=n>LOCAL7</span><span class=o>++</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=kt>int</span> <span class=o>*</span><span class=n>LOCAL10</span> <span class=o>=</span> <span class=n>func_AA1370</span><span class=p>(</span><span class=n>input</span><span class=p>[</span><span class=n>LOCAL7</span><span class=p>],</span> <span class=mi>0</span><span class=p>);</span>
+		<span class=k>for</span><span class=p>(</span><span class=kt>int</span> <span class=n>LOCAL13</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span> <span class=n>LOCAL13</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>;</span> <span class=n>LOCAL13</span><span class=o>++</span><span class=p>)</span>
+		<span class=p>{</span>          
+			<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA138E</span><span class=p>(</span><span class=n>LOCAL13</span><span class=p>);</span>
+			<span class=n>EAX</span> <span class=o>=</span> <span class=n>EAX</span> <span class=n>XOR</span> <span class=mi>2</span><span class=p>;</span>
+			<span class=n>EAX</span> <span class=o>=</span> <span class=n>func_AA139D</span><span class=p>(</span><span class=n>EAX</span><span class=p>,</span> <span class=mi>0</span><span class=p>,</span> <span class=n>LOCAL10</span><span class=p>,</span> <span class=mi>0</span><span class=p>);</span>
+			<span class=n>LOCAL4</span> <span class=o>+=</span> <span class=n>EAX</span><span class=p>;</span>
+		<span class=p>}</span>
+	<span class=p>}</span>
+	<span class=k>if</span><span class=p>([</span><span class=n>LOCAL4</span><span class=p>]</span> <span class=o>==</span> <span class=n>a</span><span class=p>)</span>
+		<span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+<span class=p>}</span>
+
+
+<span class=kt>int</span> <span class=nf>func_AA138E</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=k>if</span><span class=p>(</span><span class=n>index</span> <span class=o>&lt;</span> <span class=mi>8</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=n>func_AA10EB</span><span class=p>(</span><span class=n>index</span><span class=p>);</span>
+	<span class=p>}</span>
+<span class=p>}</span>
+
+<span class=kt>int</span> <span class=nf>func_AA10EB</span><span class=p>(</span><span class=kt>int</span> <span class=n>index</span><span class=p>)</span>
+<span class=p>{</span>
+	<span class=kt>int</span> <span class=n>a</span> <span class=o>=</span> <span class=mi>1</span> <span class=o>&lt;&lt;</span> <span class=n>index</span>  <span class=c1>//EAX = pow(2, index]);
+</span><span class=c1></span>	<span class=k>if</span><span class=p>(</span><span class=n>a</span> <span class=o>==</span> <span class=mi>0</span><span class=p>)</span>
+	<span class=p>{</span>
+		<span class=k>return</span> <span class=mi>0</span><span class=p>;</span>
+	<span class=p>}</span>
+	<span class=k>return</span> <span class=mi>1</span><span class=p>;</span>
+<span class=p>}</span>
+
+<span class=kt>int</span> <span class=nf>func_AA139D</span><span class=p>(</span><span class=kt>int</span> <span class=n>ARG1</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG2</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG3</span><span class=p>,</span> <span class=kt>int</span> <span class=n>ARG4</span><span class=p>)</span> <span class=o>//</span><span class=n>ARG2</span> <span class=o>=</span> <span class=mi>0</span><span class=p>;</span>  <span class=n>ARG4</span> <span class=o>=</span> <span class=mi>0</span>
+<span class=p>{</span>
+	<span class=k>return</span> <span class=p>([</span><span class=n>ARG3</span><span class=p>]</span> <span class=o>*</span> <span class=p>[</span><span class=n>ARG1</span><span class=p>]);</span>
+<span class=p>}</span>
+</code></pre></div><p>Örnek bir string olarak şunu deneyebilirsiniz: ~~~~~~~~~~~~~~~~~B</p><div class=nav-next-prev><div class=nav-prev><a href=http://requizm.github.io/blog/crackme-1/><i class="fas fa-chevron-left"></i></a></div><a class=nav-top href=#>top</i></a><div class=nav-next><a class=grayed-out href=javascript:void()><i class="fas fa-chevron-right"></i></a></div></div></div><footer><div class=footer-content><div class=contact-info><div class=footer-mail><i class="far fa-envelope"></i> <a href=mailto:mehmet41650@gmail.com>mehmet41650@gmail.com</a></div></div><p class="copyright meta">Copyright © 2008–2019, Steve Francia and the Hugo Authors; all rights reserved.</p></div></footer></main></body><script src=http://requizm.github.io/js/navbutton.js></script></html>
