@@ -1,0 +1,52 @@
+baseURL = "http://requizm.github.io/"
+languageCode = "tr-TR"
+title = "requizm"
+copyright = "Copyright © 2008–2019, Steve Francia and the Hugo Authors; all rights reserved."
+theme = "npq-hugo"
+pygmentsUseClasses=true
+
+[params]
+  author = "requizm"
+  description = ""
+  keywords = "requizm blog"
+  useAvatar = false
+  microBlogSection = "posts"
+  displayMicroBlog = false
+  displayRecent = true
+  displayHomeContent = false
+  recentMax = 4
+  mail = "mehmet41650@gmail.com"
+  # phone = "8888888888"
+  formspreeID = "yourformspreeID"
+
+[menu]
+  [[menu.main]]
+    name = "home"
+    pre = "<i class=\"fas fa-home fa-sm\"></i>"
+    url = "/"
+    weight = -9 
+  [[menu.main]]
+    name = "blog"
+    pre = "<i class=\"fas fa-keyboard fa-ms\"></i>"
+    url = "/blog/"
+    weight = -8
+  [[menu.main]]
+    name = "tags"
+    pre = "<i class=\"fas fa-tags fa-ms\"></i>"
+    url = "/tags"
+    weight = -7 
+  [[menu.main]]
+    name = "github"
+    pre = "<i class=\"fab fa-github fa-ms\"></i>"
+    url = "https://github.com/requizm"
+    weight = -6 
+  [[menu.main]]
+    name = "RSS"
+    pre = "<i class=\"fas fa-rss fa-ms\"></i>"
+    url = "/index.xml"
+    weight = -4 
+  #[[menu.main]]
+  #  name = "contact"
+  #  pre = "<i class=\"far fa-envelope\"></i>"
+  #  url = "/contact"
+  #  weight = -1 
